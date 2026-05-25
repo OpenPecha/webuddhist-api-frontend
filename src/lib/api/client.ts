@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { components } from "./types";
 
 export type Schemas = components["schemas"];
@@ -91,6 +92,17 @@ export function setApiKey(apiKey: string | null) {
 export function getApiKey(): string {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
+}
+
+export function useHasApiKey(): boolean {
+  const [hasKey, setHasKey] = useState(false);
+  useEffect(() => {
+    const refresh = () => setHasKey(Boolean(getApiKey().trim()));
+    refresh();
+    window.addEventListener(API_KEY_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(API_KEY_CHANGED_EVENT, refresh);
+  }, []);
+  return hasKey;
 }
 
 function hasHeader(headers: Record<string, string>, key: string): boolean {

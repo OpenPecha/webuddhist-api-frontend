@@ -14,6 +14,12 @@ import { useEditionRelatedSegments } from "@/lib/api/hooks/editions";
 
 const LIMIT = 20;
 
+function parseIntOrUndef(s: string): number | undefined {
+  if (s.trim() === "") return undefined;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? n : undefined;
+}
+
 export function RelatedSegmentsPanel({ editionId }: { editionId: string }) {
   const [start, setStart] = useState<string>("");
   const [end, setEnd] = useState<string>("");
@@ -61,8 +67,8 @@ export function RelatedSegmentsPanel({ editionId }: { editionId: string }) {
           </div>
           <Button
             onClick={() => {
-              const s = start === "" ? undefined : parseInt(start);
-              const e = end === "" ? undefined : parseInt(end);
+              const s = parseIntOrUndef(start);
+              const e = parseIntOrUndef(end);
               setActive({ start: s, end: e });
               setOffset(0);
             }}
@@ -75,8 +81,8 @@ export function RelatedSegmentsPanel({ editionId }: { editionId: string }) {
 
       {!ready && (
         <EmptyState
-          title="Enter a span and click Find."
-          description="Returns segments from other editions that align to this edition's content."
+          title="Click Find to search."
+          description="Returns segments from other editions that align to this edition's content. Leave Start/End blank to search the whole edition, or narrow to a span."
         />
       )}
 

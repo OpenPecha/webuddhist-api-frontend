@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ClipboardCopy, CornerDownLeft, MousePointerClick, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,17 +21,9 @@ import { ApiError } from "@/lib/api/client";
 export type AnnotationKind =
   | "segmentations"
   | "alignments"
-  | "pagination"
+  | "paginations"
   | "bibliographic"
   | "durchens";
-
-const ANNOTATION_TO_RESOURCE: Record<AnnotationKind, string> = {
-  segmentations: "segmentations",
-  alignments: "alignments",
-  pagination: "paginations",
-  bibliographic: "bibliographic",
-  durchens: "durchens",
-};
 
 type Props = {
   kind: AnnotationKind;
@@ -41,6 +33,8 @@ type Props = {
   onDelete: (id: string) => Promise<unknown>;
   inputExample: string;
   inputDescription: string;
+  /** Edition content; enables a span-capture helper above the JSON textarea. */
+  content?: string;
 };
 
 export function AnnotationListPanel({
@@ -51,11 +45,17 @@ export function AnnotationListPanel({
   onDelete,
   inputExample,
   inputDescription,
+  content,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [json, setJson] = useState(inputExample);
   const [busy, setBusy] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [captured, setCaptured] = useState<{ start: number; end: number } | null>(
+    null,
+  );
+  const preRef = useRef<HTMLPreElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const submit = async () => {
     setParseError(null);
@@ -72,6 +72,7 @@ export function AnnotationListPanel({
       toast.success(`${labelFor(kind)} added`);
       setOpen(false);
       setJson(inputExample);
+      setCaptured(null);
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : `Failed to add ${kind}`,
@@ -79,6 +80,53 @@ export function AnnotationListPanel({
     } finally {
       setBusy(false);
     }
+  };
+
+  const captureSelection = () => {
+    const pre = preRef.current;
+    if (!pre || !content) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      toast.error("Select some text in the content preview first");
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (
+      !pre.contains(range.startContainer) ||
+      !pre.contains(range.endContainer)
+    ) {
+      toast.error("Selection must be inside the content preview");
+      return;
+    }
+    const before = range.cloneRange();
+    before.selectNodeContents(pre);
+    before.setEnd(range.startContainer, range.startOffset);
+    const start = before.toString().length;
+    const within = range.cloneRange();
+    within.selectNodeContents(pre);
+    within.setEnd(range.endContainer, range.endOffset);
+    const end = within.toString().length;
+    if (end > start) setCaptured({ start, end });
+  };
+
+  const insertAtCursor = () => {
+    if (!captured) return;
+    const ta = textareaRef.current;
+    const snippet = `{ "start": ${captured.start}, "end": ${captured.end} }`;
+    if (!ta) {
+      void navigator.clipboard?.writeText(snippet);
+      toast.success("Copied to clipboard");
+      return;
+    }
+    const start = ta.selectionStart ?? json.length;
+    const end = ta.selectionEnd ?? json.length;
+    const next = json.slice(0, start) + snippet + json.slice(end);
+    setJson(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      const pos = start + snippet.length;
+      ta.setSelectionRange(pos, pos);
+    });
   };
 
   return (
@@ -107,7 +155,7 @@ export function AnnotationListPanel({
               className="flex items-center justify-between px-3 py-2"
             >
               <Link
-                href={`/annotations/${ANNOTATION_TO_RESOURCE[kind]}/${item.id}`}
+                href={`/annotations/${kind}/${item.id}`}
                 className="text-sm font-mono text-primary hover:underline"
               >
                 {item.id}
@@ -142,22 +190,83 @@ export function AnnotationListPanel({
       )}
 
       <Dialog open={open} onOpenChange={(v) => !busy && setOpen(v)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>Add {labelFor(kind).toLowerCase()}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label>JSON payload</Label>
-            <p className="text-xs text-muted-foreground">{inputDescription}</p>
-            <Textarea
-              value={json}
-              onChange={(e) => setJson(e.target.value)}
-              className="font-mono text-xs min-h-[260px]"
-              spellCheck={false}
-            />
-            {parseError && (
-              <p className="text-xs text-destructive">{parseError}</p>
+          <div className="space-y-3">
+            {content !== undefined && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs">
+                    Edition content — select text and capture a span
+                  </Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={captureSelection}
+                  >
+                    <MousePointerClick className="h-3.5 w-3.5" /> Capture
+                  </Button>
+                </div>
+                <pre
+                  ref={preRef}
+                  className="rounded-md border bg-muted/20 p-3 font-mono text-xs whitespace-pre-wrap break-words leading-relaxed overflow-y-auto max-h-[200px]"
+                >
+                  {content || "(empty content)"}
+                </pre>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <span className="text-muted-foreground">
+                    {content.length.toLocaleString()} chars total.
+                  </span>
+                  {captured && (
+                    <>
+                      <span className="font-mono text-foreground">
+                        Last span: [{captured.start}, {captured.end})
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2"
+                        onClick={() => {
+                          void navigator.clipboard?.writeText(
+                            `{ "start": ${captured.start}, "end": ${captured.end} }`,
+                          );
+                          toast.success("Copied");
+                        }}
+                      >
+                        <ClipboardCopy className="h-3 w-3" /> Copy
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2"
+                        onClick={insertAtCursor}
+                      >
+                        <CornerDownLeft className="h-3 w-3" /> Insert at cursor
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
             )}
+            <div className="space-y-1">
+              <Label>JSON payload</Label>
+              <p className="text-xs text-muted-foreground">{inputDescription}</p>
+              <Textarea
+                ref={textareaRef}
+                value={json}
+                onChange={(e) => setJson(e.target.value)}
+                className="font-mono text-xs min-h-[260px]"
+                spellCheck={false}
+              />
+              {parseError && (
+                <p className="text-xs text-destructive">{parseError}</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -183,7 +292,7 @@ function labelFor(kind: AnnotationKind): string {
       return "Segmentations";
     case "alignments":
       return "Alignments";
-    case "pagination":
+    case "paginations":
       return "Pagination";
     case "bibliographic":
       return "Bibliographic";
