@@ -57,11 +57,8 @@ export function useEditionContent(
 export function usePatchEditionContent(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (operations: ContentOperation[]) => {
-      for (const op of operations) {
-        await api.patch<unknown>(`v2/editions/${id}/content`, op);
-      }
-    },
+    mutationFn: (op: ContentOperation) =>
+      api.patch<unknown>(`v2/editions/${id}/content`, op),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["editions", id, "content"] }),
   });
