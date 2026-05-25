@@ -18,19 +18,15 @@ const HOP_BY_HOP = new Set([
   "cookie",
 ]);
 
+const DEFAULT_API_BASE = "http://13.250.189.160";
+
 async function handle(
   request: NextRequest,
   ctx: { params: Promise<{ path: string[] }> },
 ) {
-  const base = process.env.OPENPECHA_API_BASE;
+  const base = process.env.OPENPECHA_API_BASE?.trim() || DEFAULT_API_BASE;
   const apiKey = request.headers.get("X-API-Key")?.trim();
 
-  if (!base) {
-    return Response.json(
-      { error: "OPENPECHA_API_BASE is not set" },
-      { status: 500 },
-    );
-  }
   if (!apiKey) {
     return Response.json(
       { error: "Enter an API key to read or write data." },

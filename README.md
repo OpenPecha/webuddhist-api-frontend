@@ -16,10 +16,9 @@ A Next.js admin frontend for the [OpenPecha API v2](http://13.250.189.160/redoc)
    npm install
    ```
 
-2. **Create `.env.local`** (copy from `.env.local.example`)
+2. **(Optional) Create `.env.local`** — no env vars are required out of the box. Copy from `.env.local.example` only if you want to override the upstream URL or set a default application id.
    ```
-   OPENPECHA_API_BASE=http://13.250.189.160
-   OPENPECHA_API_KEY=<your api key>
+   # OPENPECHA_API_BASE=http://13.250.189.160
    # OPENPECHA_DEFAULT_APPLICATION=<optional default application id>
    ```
 
@@ -29,11 +28,15 @@ A Next.js admin frontend for the [OpenPecha API v2](http://13.250.189.160/redoc)
    ```
    Open http://localhost:3000.
 
-4. **Create an Application** at `/applications` if you don't have one, then click "Use" to make it active. Most write endpoints (texts, categories, tags, segments) require an `X-Application` header.
+4. **Enter your API key** via the Settings dialog in the sidebar footer. It is stored in your browser's `localStorage` and sent as `X-API-Key` on every request.
+
+5. **Create an Application** at `/applications` if you don't have one, then click "Use" to make it active. Most write endpoints (texts, categories, tags, segments) require an `X-Application` header.
 
 ## How auth works
 
-The browser never sees the API key. All API calls go to a same-origin route at `/api/proxy/...`, and the Next.js server attaches `X-API-Key` from the env var before forwarding to the upstream API. This also avoids CORS and mixed-content (the upstream is HTTP, not HTTPS).
+Each user enters their own API key in the in-app Settings dialog. The key is kept in `localStorage` and sent on the request as `X-API-Key`. All API calls go to a same-origin route at `/api/proxy/...`, which forwards the request to the upstream API — this avoids CORS and mixed-content issues (the upstream is HTTP, not HTTPS).
+
+The upstream base URL defaults to `http://13.250.189.160` and can be overridden with `OPENPECHA_API_BASE`.
 
 Source: `src/app/api/proxy/[...path]/route.ts`.
 
