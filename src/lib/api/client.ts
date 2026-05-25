@@ -62,6 +62,8 @@ export class ApiError extends Error {
 }
 
 const APPLICATION_HEADER_KEY = "openpecha:x-application";
+const API_KEY_STORAGE_KEY = "openpecha:x-api-key";
+export const API_KEY_CHANGED_EVENT = "openpecha:api-key-changed";
 export const DEFAULT_APPLICATION_ID = "webuddhist";
 
 export function setApplicationId(id: string | null) {
@@ -76,6 +78,24 @@ export function getApplicationId(): string {
   return (
     localStorage.getItem(APPLICATION_HEADER_KEY) ?? DEFAULT_APPLICATION_ID
   );
+}
+
+export function setApiKey(apiKey: string | null) {
+  if (typeof window === "undefined") return;
+  const value = apiKey?.trim();
+  if (value) localStorage.setItem(API_KEY_STORAGE_KEY, value);
+  else localStorage.removeItem(API_KEY_STORAGE_KEY);
+  window.dispatchEvent(new Event(API_KEY_CHANGED_EVENT));
+}
+
+export function getApiKey(): string {
+  if (typeof window === "undefined") return "";
+  return localStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
+}
+
+function hasHeader(headers: Record<string, string>, key: string): boolean {
+  const lowerKey = key.toLowerCase();
+  return Object.keys(headers).some((name) => name.toLowerCase() === lowerKey);
 }
 
 function buildUrl(
@@ -119,6 +139,18 @@ async function request<T>(
   const appId = getApplicationId();
   if (appId && !headers["X-Application"]) {
     headers["X-Application"] = appId;
+  }
+
+  const apiKey = getApiKey().trim();
+  if (!apiKey && !hasHeader(headers, "X-API-Key")) {
+    throw new ApiError(
+      401,
+      "Enter an API key to read or write data.",
+      null,
+    );
+  }
+  if (apiKey && !hasHeader(headers, "X-API-Key")) {
+    headers["X-API-Key"] = apiKey;
   }
 
   let body: BodyInit | undefined;

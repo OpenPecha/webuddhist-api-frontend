@@ -4,7 +4,7 @@ export function PlainContentView({ content }: { content: string }) {
       <p className="text-sm text-muted-foreground italic">No content.</p>
     );
   return (
-    <div className="rounded-md border bg-card p-4 max-h-[600px] overflow-y-auto">
+    <div className="rounded-md border bg-card p-4">
       <pre className="whitespace-pre-wrap leading-loose text-base">
         {content}
       </pre>

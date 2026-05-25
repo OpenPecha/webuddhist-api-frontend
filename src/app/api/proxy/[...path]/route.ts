@@ -23,7 +23,7 @@ async function handle(
   ctx: { params: Promise<{ path: string[] }> },
 ) {
   const base = process.env.OPENPECHA_API_BASE;
-  const apiKey = process.env.OPENPECHA_API_KEY;
+  const apiKey = request.headers.get("X-API-Key")?.trim();
 
   if (!base) {
     return Response.json(
@@ -33,8 +33,8 @@ async function handle(
   }
   if (!apiKey) {
     return Response.json(
-      { error: "OPENPECHA_API_KEY is not set" },
-      { status: 500 },
+      { error: "Enter an API key to read or write data." },
+      { status: 401 },
     );
   }
 

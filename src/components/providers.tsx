@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
+import { API_KEY_CHANGED_EVENT } from "@/lib/api/client";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -21,6 +22,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }),
   );
+  useEffect(() => {
+    const handler = () => client.clear();
+    window.addEventListener(API_KEY_CHANGED_EVENT, handler);
+    return () => window.removeEventListener(API_KEY_CHANGED_EVENT, handler);
+  }, [client]);
+
   return (
     <QueryClientProvider client={client}>
       {children}
